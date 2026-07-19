@@ -1,6 +1,38 @@
-# inw
+<h1 align="center">⚡ inw</h1>
 
-Save shell commands by name and run them from anywhere — globally, or scoped to a project.
+<p align="center">
+  <b>Your shell's muscle memory, saved.</b><br>
+  Name a command once. Run it from anywhere, forever.
+</p>
+
+<p align="center">
+  <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A518-3c873a">
+  <img alt="typescript" src="https://img.shields.io/badge/TypeScript-ESM-3178c6">
+  <img alt="shell" src="https://img.shields.io/badge/shell-bash%20%7C%20zsh%20%7C%20sh-4eaa25">
+</p>
+
+---
+
+You know the command. You wrote it three weeks ago. It's *somewhere* in your history, and `Ctrl+R` isn't finding it.
+
+```bash
+inw deploy ./scripts/deploy.sh staging --verbose --no-cache   # save it
+inw deploy                                                    # 🎉 forever
+```
+
+That's it. That's the tool.
+
+### 🔥 What makes it good
+
+| | |
+|---|---|
+| 🏷️ **Unlimited named aliases** | No more ten numbered slots. `deploy`, `test-e2e`, `db_reset` — call them what they are. |
+| 🔍 **Fuzzy searchable picker** | Just type `inw`. Search matches the alias, the command body, *and* the description — so you'll find it even under a forgotten name. |
+| 📁 **Per-project scopes** | A `.inw_commands` in your repo travels with it. `test` means one thing in the API, another in the frontend. |
+| 🪄 **`cd` and `export` actually work** | Saved commands `eval` in **your** shell, not a dead subprocess. This is the whole trick. |
+| ✍️ **Hand-editable TOML** | Comments, ordering, and blank lines survive every write. Commit the file or don't. |
+| 📋 **Copy, edit, delete inline** | `^Y` `^E` `^X` — never leave the picker. Multi-line commands open in `$EDITOR`. |
+| 🚚 **Zero-effort migration** | Old `.bash_inw` slots convert on first run, with a backup. |
 
 Replaces the original `.bash_inw` script's ten numbered slots with unlimited named aliases, a searchable picker, and per-project command files.
 
@@ -18,7 +50,7 @@ $ inw
  [Enter] Run • [^Y] Copy • [^E] Edit • [^X] Delete • [^W] Delete word • [Esc] Exit
 ```
 
-Type to filter. Everything else is a Ctrl combo, so ordinary letters always reach the search box:
+**Type to filter — that's the only thing plain letters do.** Everything else is a Ctrl combo, so `j`, `k`, and `w` always reach the search box instead of hijacking the selection:
 
 | Key | Action |
 |---|---|
@@ -32,7 +64,7 @@ Type to filter. Everything else is a Ctrl combo, so ordinary letters always reac
 | `Ctrl+X` | delete it, with confirmation |
 | `Esc` | quit |
 
-## Install
+## 📦 Install
 
 **Cloning this for the first time? See [SETUP.md](SETUP.md)** for a step-by-step walkthrough with verification and troubleshooting. The short version:
 
@@ -52,7 +84,7 @@ source /path/to/magic-inw/contracts/shell.sh
 
 Once it works, remove the old `source ~/.bash_inw` line from your `~/.bashrc` — but only after confirming your commands migrated (see below).
 
-## Usage
+## 🚀 Usage
 
 | Command | What it does |
 |---|---|
@@ -77,7 +109,7 @@ Aliases are lowercase and may contain digits, hyphens, and underscores (`build-w
 
 Two or more tokens is always a save. To pass arguments to a saved command, use `--`.
 
-## Scopes
+## 📁 Scopes
 
 **Global** lives in `~/.inw_saved_commands` and is available everywhere.
 
@@ -103,7 +135,7 @@ Saving without a flag always writes to **global**. If the alias you just saved i
 
 The picker shows both, flagged `[p]` and `[g]`. The flag column appears only when a project scope is active; with no project in play every entry is global and the column would just be noise.
 
-## The command files
+## 📝 The command files
 
 Plain TOML, one table per alias, meant to be edited by hand:
 
@@ -126,7 +158,7 @@ npm run build"""
 
 Multi-line commands are supported. The picker collapses them to their first line with a `↵` marker, and pressing `e` on one opens `$EDITOR` instead of the inline editor.
 
-## Migration from the old script
+## 🚚 Migration from the old script
 
 The first run converts `~/.inw_saved_commands` from the old `declare -a INW_CMDS` format automatically. Slots `0`–`9` become ordinary aliases named `"0"` through `"9"` — digits carry no special meaning now.
 
@@ -136,7 +168,7 @@ The original is backed up to `~/.inw_saved_commands.bak` first, and an existing 
 inw          # everything you had should be listed
 ```
 
-## Security note
+## 🔒 Security note
 
 Project scope introduces something the old global-only script did not have: **a `.inw_commands` file in a repository you cloned contains commands written by someone else.** Running `inw <alias>` inside that repository will `eval` them in your shell.
 
@@ -144,7 +176,7 @@ The picker shows the command text before you press Enter, so browsing is safe. A
 
 Treat a repository's `.inw_commands` the way you'd treat its `Makefile` or `package.json` scripts: read it before running anything from it.
 
-## Development
+## 🛠️ Development
 
 ```bash
 npm test              # unit + shell integration tests
@@ -154,8 +186,9 @@ npm run test:shell    # shell wrapper and end-to-end command surface
 
 The shell tests exist because the two things that matter most cannot be proven from Node: that a saved `cd` changes your actual shell's directory, and that a failing command's exit status propagates rather than always returning 0.
 
-## Design notes
+## 🧠 Design notes
 
+**The trick:** a Node process cannot change its parent shell. So `inw` never executes anything —
 `inw` prints `__exec__:<command>` to stdout and the shell function `eval`s it. Everything else — the UI, errors, warnings — goes to stderr.
 
 This means **stdout is a reserved channel**. Anything else written there gets executed in the user's live shell, which is why the Ink UI renders to stderr and why there are tests asserting stdout stays clean.
