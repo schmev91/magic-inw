@@ -1,4 +1,11 @@
+import React from 'react';
+import { render } from 'ink';
 import { ResolvedEntry } from '../core/types.js';
+import { upsertEntry, deleteEntry } from '../storage/toml-store.js';
+import { copyToClipboard } from '../core/clipboard.js';
+import { editInEditor } from '../core/editor.js';
+import { collapseCommand } from '../core/ui-utils.js';
+import { ListView } from './views/ListView.js';
 
 export interface LaunchOptions {
   entries: ResolvedEntry[];
@@ -7,7 +14,46 @@ export interface LaunchOptions {
   onRun: (entry: ResolvedEntry) => void;
 }
 
-/** Replaced by the Ink picker in U9. */
-export async function launchUI(_options: LaunchOptions): Promise<void> {
-  process.stderr.write('inw: picker not yet implemented\n');
+export async function launchUI({ entries, showScopeFlags, onRun }: LaunchOptions): Promise<void> {
+  // The picker needs raw mode, which needs a TTY. Piped or scripted stdin
+  // would otherwise crash inside ink-text-input with a React stack trace, so
+  // fall back to listing the commands the way the old `ina` did.
+  if (!process.stdin.isTTY) {
+    listEntries(entries, showScopeFlags);
+    return;
+  }
+
+  const { waitUntilExit } = render(
+    <ListView
+      entries={entries}
+      showScopeFlags={showScopeFlags}
+      onRun={onRun}
+      onDelete={(entry) => deleteEntry(entry.sourcePath, entry.alias)}
+      onEdit={(entry, next) => upsertEntry(entry.sourcePath, { ...entry, cmd: next })}
+      onCopy={(entry) => copyToClipboard(entry.cmd)}
+      onEditExternal={(entry) => editInEditor(entry.cmd)}
+    />,
+    {
+      // Ink renders to stderr because stdout is the reserved exec channel —
+      // a frame written there would be eval'd by the shell wrapper.
+      stdout: process.stderr,
+      patchConsole: false,
+    },
+  );
+
+  await waitUntilExit();
+}
+
+/** Plain-text listing for non-interactive stdin. */
+function listEntries(entries: ResolvedEntry[], showScopeFlags: boolean): void {
+  if (entries.length === 0) {
+    process.stderr.write('No commands saved yet. Save one with: inw <alias> <command>\n');
+    return;
+  }
+
+  process.stderr.write('Saved commands:\n');
+  for (const entry of entries) {
+    const flag = showScopeFlags ? (entry.scope === 'project' ? '[p] ' : '[g] ') : '';
+    process.stderr.write(`  ${flag}${entry.alias.padEnd(18)} ${collapseCommand(entry.cmd)}\n`);
+  }
 }
