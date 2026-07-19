@@ -11,23 +11,37 @@ export interface LaunchOptions {
   entries: ResolvedEntry[];
   /** Only true when a project scope is active — gates the [p]/[g] column. */
   showScopeFlags: boolean;
-  onRun: (entry: ResolvedEntry) => void;
 }
 
-export async function launchUI({ entries, showScopeFlags, onRun }: LaunchOptions): Promise<void> {
+/**
+ * Show the picker and return the entry the user chose, or null if they quit.
+ *
+ * The chosen command is deliberately NOT run here. Running it can write the
+ * exec signal and call process.exit, and doing that from inside the render
+ * tree tears down Ink mid-frame and can leave the terminal in raw mode. The
+ * UI decides; the caller acts once Ink has fully unmounted.
+ */
+export async function launchUI({
+  entries,
+  showScopeFlags,
+}: LaunchOptions): Promise<ResolvedEntry | null> {
   // The picker needs raw mode, which needs a TTY. Piped or scripted stdin
   // would otherwise crash inside ink-text-input with a React stack trace, so
   // fall back to listing the commands the way the old `ina` did.
   if (!process.stdin.isTTY) {
     listEntries(entries, showScopeFlags);
-    return;
+    return null;
   }
+
+  let chosen: ResolvedEntry | null = null;
 
   const { waitUntilExit } = render(
     <ListView
       entries={entries}
       showScopeFlags={showScopeFlags}
-      onRun={onRun}
+      onRun={(entry) => {
+        chosen = entry;
+      }}
       onDelete={(entry) => deleteEntry(entry.sourcePath, entry.alias)}
       onEdit={(entry, next) => upsertEntry(entry.sourcePath, { ...entry, cmd: next })}
       onCopy={(entry) => copyToClipboard(entry.cmd)}
@@ -42,6 +56,7 @@ export async function launchUI({ entries, showScopeFlags, onRun }: LaunchOptions
   );
 
   await waitUntilExit();
+  return chosen;
 }
 
 /** Plain-text listing for non-interactive stdin. */

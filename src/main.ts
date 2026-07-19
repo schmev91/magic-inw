@@ -46,11 +46,15 @@ export async function main(): Promise<void> {
   // No alias: open the picker.
   if (input.length === 0) {
     const entries = sortByRecency(allEntries(sources), readUsage());
-    await launchUI({
+    const chosen = await launchUI({
       entries,
       showScopeFlags: hasProjectScope(sources),
-      onRun: (entry) => runCommand(entry.cmd, entry.scope, entry.alias, passthrough),
     });
+
+    // Run only after Ink has unmounted — see launchUI.
+    if (chosen) {
+      runCommand(chosen.cmd, chosen.scope, chosen.alias, passthrough);
+    }
     return;
   }
 
