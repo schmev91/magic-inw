@@ -1,0 +1,7 @@
+declare -a INW_CMDS
+INW_CMDS[0]=echo\ hello
+INW_CMDS[1]=cd\ /tmp\ \&\&\ ls\ -la
+INW_CMDS[3]=echo\ \'single\'\ \"double\"\ \$USER
+INW_CMDS[5]=$'echo tab\there\nand newline'
+INW_CMDS[7]=awk\ \"\{print\ \\\$1\}\"\ f.txt\ \|\ grep\ -v\ \"\^#\"
+INW_CMDS[9]=npm\ run\ build
