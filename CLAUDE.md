@@ -88,7 +88,11 @@ The unquoting handles bash `printf %q` output, which picks its style per value: 
 
 ### UI
 
-Mirrors `magic-onw`'s structure: `SearchInput` above, `SelectInput` with a custom `itemComponent` below, `useInput` for the keymap.
+**`ListView` owns all key handling — there is exactly one `useInput` and no third-party input components.** This is deliberate and worth not undoing: every candidate library conflicts with a search-as-you-type picker. `ink-text-input` inserts whatever character it receives *including when `key.ctrl` is set*, so Ctrl+W typed a literal "w"; `ink-select-input` treats bare `j`/`k` as navigation, so typing "jest" jumped the selection. With both mounted alongside a local handler, every keystroke had two meanings. `SearchInput` is now display-only and the list is rendered directly.
+
+Ink also **cannot distinguish Backspace from Delete** — both arrive as `key.delete` with no `meta`. That is why editing the query is bound to both, and why removing an entry is `Ctrl+X` rather than `Del`. Alt+Backspace arrives as `meta` plus *either* `backspace` or `delete` depending on whether the terminal encodes Backspace as `\x08` or `\x7f`; handle both or the binding works on some terminals only.
+
+Key parsing helpers live in `core/text-edit.ts` as pure functions. `printableInput` must check modifiers explicitly rather than inspecting the string, since ink reports the bare letter for Ctrl combos.
 
 - Search matches alias, command body, **and** description — matching the body is how you find a command saved months ago under a forgotten name, including continuation lines the row collapses away.
 - The `[p]`/`[g]` column renders only when a project scope is active; otherwise every entry is global and the column is noise.

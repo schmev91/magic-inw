@@ -85,6 +85,21 @@ export function renderInk(element: ReactElement): InkTestResult {
 /** Let Ink flush a render pass. */
 export const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 
-/** Escape sequence for the Delete key. */
-export const DELETE_KEY = '[3~';
-export const ENTER = '\r';
+
+/** Key sequences, by the name a user would call them. */
+export const KEYS = {
+  enter: '\r',
+  escape: '\x1b',
+  backspace: '\x7f',
+  backspaceBS: '\x08',
+  altBackspace: '\x1b\x7f',
+  altBackspaceBS: '\x1b\x08',
+  deleteKey: '\x1b[3~',
+  up: '\x1b[A',
+  down: '\x1b[B',
+  ctrlU: '\x15',
+  ctrlW: '\x17',
+  ctrlY: '\x19',
+  ctrlE: '\x05',
+  ctrlX: '\x18',
+} as const;

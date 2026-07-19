@@ -7,7 +7,7 @@ import { Scope } from '../../core/types.js';
 interface Props {
   label: string;
   isSelected?: boolean;
-  /** The command body. ink-select-input spreads the item object as props. */
+  /** The command body. */
   command?: string;
   scope?: Scope;
   /** False when no project scope is active, which hides the flag column. */

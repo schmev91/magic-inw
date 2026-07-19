@@ -15,8 +15,22 @@ $ inw
    [g] ci              npm run lint && npm test
    [g] test            pytest
 
- [Enter] Run • [c] Copy • [e] Edit • [Del] Delete • [Esc] Exit
+ [Enter] Run • [^Y] Copy • [^E] Edit • [^X] Delete • [^W] Delete word • [Esc] Exit
 ```
+
+Type to filter. Everything else is a Ctrl combo, so ordinary letters always reach the search box:
+
+| Key | Action |
+|---|---|
+| type / `Backspace` | edit the search |
+| `Alt+Backspace`, `Ctrl+W` | delete the previous word |
+| `Ctrl+U` | clear the search |
+| `↑` `↓` | move the selection |
+| `Enter` | run the highlighted command |
+| `Ctrl+Y` | copy it to the clipboard |
+| `Ctrl+E` | edit it (multi-line opens `$EDITOR`) |
+| `Ctrl+X` | delete it, with confirmation |
+| `Esc` | quit |
 
 ## Install
 

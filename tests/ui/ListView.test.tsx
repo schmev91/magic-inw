@@ -1,5 +1,5 @@
 import React from 'react';
-import { renderInk, settle, DELETE_KEY, ENTER } from '../helpers/ink.js';
+import { renderInk, settle, KEYS } from '../helpers/ink.js';
 import { ListView } from '../../src/ui/views/ListView.js';
 import { ResolvedEntry } from '../../src/core/types.js';
 
@@ -99,9 +99,9 @@ describe('rendering', () => {
     await settle();
 
     expect(lastFrame()).toContain('[Enter] Run');
-    expect(lastFrame()).toContain('[c] Copy');
-    expect(lastFrame()).toContain('[e] Edit');
-    expect(lastFrame()).toContain('[Del] Delete');
+    expect(lastFrame()).toContain('[^Y] Copy');
+    expect(lastFrame()).toContain('[^E] Edit');
+    expect(lastFrame()).toContain('[^X] Delete');
   });
 });
 
@@ -168,7 +168,7 @@ describe('actions', () => {
       onRun: (e) => ran.push(e.alias),
     });
     await settle();
-    write('\r');
+    write(KEYS.enter);
     await settle();
 
     expect(ran).toEqual(['deploy']);
@@ -183,7 +183,7 @@ describe('actions', () => {
       },
     });
     await settle();
-    write('c');
+    write(KEYS.ctrlY);
     await settle();
 
     expect(copied).toEqual(['./deploy.sh']);
@@ -195,7 +195,7 @@ describe('actions', () => {
       onCopy: () => ({ ok: false, reason: 'no clipboard tool' }),
     });
     await settle();
-    write('c');
+    write(KEYS.ctrlY);
     await settle();
 
     expect(lastFrame()).toMatch(/copy failed/i);
@@ -208,7 +208,7 @@ describe('actions', () => {
       showScopeFlags: true,
     });
     await settle();
-    write('[3~'); // Delete key
+    write(KEYS.ctrlX);
     await settle();
 
     expect(lastFrame()).toMatch(/delete/i);
@@ -223,7 +223,7 @@ describe('actions', () => {
       onDelete: (e) => deleted.push({ alias: e.alias, scope: e.scope }),
     });
     await settle();
-    write('[3~');
+    write(KEYS.ctrlX);
     await settle();
     write('y');
     await settle();
@@ -236,7 +236,7 @@ describe('actions', () => {
     const deleted: string[] = [];
     const { write, lastFrame } = setup({ onDelete: (e) => deleted.push(e.alias) });
     await settle();
-    write('[3~');
+    write(KEYS.ctrlX);
     await settle();
     write('n');
     await settle();
@@ -248,7 +248,7 @@ describe('actions', () => {
   it('opens an inline editor prefilled for a single-line entry', async () => {
     const { write, lastFrame } = setup({ entries: [entry('deploy', './deploy.sh')] });
     await settle();
-    write('e');
+    write(KEYS.ctrlE);
     await settle();
 
     expect(lastFrame()).toMatch(/editing/i);
@@ -262,11 +262,11 @@ describe('actions', () => {
       onEdit: (e, next) => edits.push({ alias: e.alias, next }),
     });
     await settle();
-    write('e');
+    write(KEYS.ctrlE);
     await settle();
     write('X');
     await settle();
-    write('\r');
+    write(KEYS.enter);
     await settle();
 
     expect(edits).toHaveLength(1);
@@ -281,7 +281,7 @@ describe('actions', () => {
       entries: [entry('deploy', './deploy.sh'), entry('other', 'echo other')],
     });
     await settle();
-    write('e');
+    write(KEYS.ctrlE);
     await settle();
     write('zzz');
     await settle();
@@ -300,7 +300,7 @@ describe('actions', () => {
       },
     });
     await settle();
-    write('e');
+    write(KEYS.ctrlE);
     await settle();
 
     expect(opened).toEqual(['rel']);
@@ -315,9 +315,176 @@ describe('actions', () => {
       onEditExternal: () => null,
     });
     await settle();
-    write('e');
+    write(KEYS.ctrlE);
     await settle();
 
     expect(edits).toEqual([]);
+  });
+});
+
+describe('search editing', () => {
+  const entries = [entry('deploy', './scripts/deploy.sh'), entry('ci', 'npm run lint')];
+
+  it('deletes a character on Backspace without touching the entry list', async () => {
+    const deleted: string[] = [];
+    const { write, lastFrame } = setup({ entries, onDelete: (e) => deleted.push(e.alias) });
+    await settle();
+    write('dep');
+    await settle();
+    write(KEYS.backspace);
+    await settle();
+
+    expect(lastFrame()).toContain('Search: de');
+    // Regression: Backspace used to open the delete-entry confirmation,
+    // because ink reports it as key.delete — same as the Delete key.
+    expect(lastFrame()).not.toMatch(/\[y\/n\]/);
+    expect(deleted).toEqual([]);
+  });
+
+  it('deletes a character on the Delete key too', async () => {
+    const { write, lastFrame } = setup({ entries });
+    await settle();
+    write('dep');
+    await settle();
+    write(KEYS.deleteKey);
+    await settle();
+
+    expect(lastFrame()).toContain('Search: de');
+  });
+
+  it.each([
+    ['Alt+Backspace (DEL encoding)', KEYS.altBackspace],
+    ['Alt+Backspace (BS encoding)', KEYS.altBackspaceBS],
+    ['Ctrl+W', KEYS.ctrlW],
+  ])('deletes the previous word on %s', async (_name, seq) => {
+    const { write, lastFrame } = setup({ entries });
+    await settle();
+    write('npm run');
+    await settle();
+    write(seq);
+    await settle();
+
+    expect(lastFrame()).toContain('Search: npm');
+    expect(lastFrame()).not.toContain('Search: npm run');
+  });
+
+  it('clears the whole query on Ctrl+U', async () => {
+    const { write, lastFrame } = setup({ entries });
+    await settle();
+    write('deploy');
+    await settle();
+    write(KEYS.ctrlU);
+    await settle();
+
+    expect(lastFrame()).toContain('alias or command text...');
+    expect(lastFrame()).toContain('deploy');
+    expect(lastFrame()).toContain('ci');
+  });
+
+  it('deletes one word per press, not the whole query', async () => {
+    const { write, lastFrame } = setup({ entries });
+    await settle();
+    write('a b c');
+    await settle();
+    write(KEYS.ctrlW);
+    await settle();
+
+    expect(lastFrame()).toContain('Search: a b');
+  });
+
+  it('does not type action keys into the query', async () => {
+    // Regression: 'c' and 'e' were both actions and printable, so pressing
+    // them ran the action AND filtered the list to nothing.
+    const { write, lastFrame } = setup({ entries });
+    await settle();
+    write(KEYS.ctrlY);
+    await settle();
+    expect(lastFrame()).not.toContain('Search: y');
+    expect(lastFrame()).not.toContain('Search: x');
+  });
+
+  it('lets you type letters that used to be action keys', async () => {
+    // 'c' and 'e' must now be ordinary search characters.
+    const { write, lastFrame } = setup({ entries: [entry('ci', 'npm run lint')] });
+    await settle();
+    write('ci');
+    await settle();
+
+    expect(lastFrame()).toContain('Search: ci');
+    expect(lastFrame()).toContain('npm run lint');
+  });
+
+  it('lets you type j and k, which used to move the selection', async () => {
+    // Regression: ink-select-input treated bare j/k as navigation.
+    const { write, lastFrame } = setup({ entries: [entry('jk-tool', 'echo jk')] });
+    await settle();
+    write('jk');
+    await settle();
+
+    expect(lastFrame()).toContain('Search: jk');
+    expect(lastFrame()).toContain('jk-tool');
+  });
+
+  it('accepts a multi-character paste as one chunk', async () => {
+    const { write, lastFrame } = setup({ entries });
+    await settle();
+    write('deploy.sh');
+    await settle();
+
+    expect(lastFrame()).toContain('Search: deploy.sh');
+  });
+});
+
+describe('navigation', () => {
+  const many = Array.from({ length: 5 }, (_, i) => entry(`cmd${i}`, `echo ${i}`));
+
+  it('moves the selection with arrow keys', async () => {
+    const ran: string[] = [];
+    const { write } = setup({ entries: many, onRun: (e) => ran.push(e.alias) });
+    await settle();
+    write(KEYS.down);
+    await settle();
+    write(KEYS.down);
+    await settle();
+    write(KEYS.enter);
+    await settle();
+
+    expect(ran).toEqual(['cmd2']);
+  });
+
+  it('does not move above the first entry', async () => {
+    const ran: string[] = [];
+    const { write } = setup({ entries: many, onRun: (e) => ran.push(e.alias) });
+    await settle();
+    write(KEYS.up);
+    await settle();
+    write(KEYS.up);
+    await settle();
+    write(KEYS.enter);
+    await settle();
+
+    expect(ran).toEqual(['cmd0']);
+  });
+
+  it('resets the selection to the top when the query changes', async () => {
+    const ran: string[] = [];
+    const { write } = setup({ entries: many, onRun: (e) => ran.push(e.alias) });
+    await settle();
+    write(KEYS.down);
+    await settle();
+    write('cmd');
+    await settle();
+    write(KEYS.enter);
+    await settle();
+
+    expect(ran).toEqual(['cmd0']);
+  });
+
+  it('shows a scroll indicator when entries overflow the page', async () => {
+    const lots = Array.from({ length: 20 }, (_, i) => entry(`c${i}`, `echo ${i}`));
+    const { lastFrame } = setup({ entries: lots, pageSize: 5 });
+    await settle();
+
+    expect(lastFrame()).toMatch(/↓ \d+ more/);
   });
 });
