@@ -1,0 +1,106 @@
+
+# File to store saved commands
+INW_FILE=~/.inw_saved_commands
+
+# Initialize the array
+declare -a INW_CMDS
+
+# Load saved commands from file on startup (directly, not in a function)
+if [ -f "$INW_FILE" ]; then
+  source "$INW_FILE"
+fi
+
+# Save commands to file
+save_inw() {
+  echo "declare -a INW_CMDS" > "$INW_FILE"
+  for i in "${!INW_CMDS[@]}"; do
+    printf "INW_CMDS[%d]=%q\n" "$i" "${INW_CMDS[$i]}" >> "$INW_FILE"
+  done
+}
+
+inw() {
+  if [ $# -eq 0 ]; then
+    # No args: execute slot 0
+    local slot=0
+    local cmd="${INW_CMDS[$slot]}"
+    if [ -n "$cmd" ]; then
+      echo "Executing inw$slot: $cmd"
+      eval "$cmd"
+    else
+      echo "No command saved in inw$slot"
+    fi
+    return
+  fi
+
+  local first=$1
+  if [[ $first =~ ^[0-9]$ ]]; then
+    # First arg is digit
+    local slot=$first
+    shift
+    if [ $# -gt 0 ]; then
+      # Has more args: save mode (inw 1 <command>)
+      INW_CMDS[$slot]="$*"
+      echo "Saved to inw$slot: ${INW_CMDS[$slot]}"
+      save_inw
+    else
+      # No more args: execute mode (inw 1)
+      local cmd="${INW_CMDS[$slot]}"
+      if [ -n "$cmd" ]; then
+        echo "Executing inw$slot: $cmd"
+        eval "$cmd"
+      else
+        echo "No command saved in inw$slot"
+      fi
+    fi
+  else
+    # First arg not digit: save to slot 0
+    INW_CMDS[0]="$*"
+    echo "Saved to inw0: ${INW_CMDS[0]}"
+    save_inw
+  fi
+}
+
+inv() {
+  local slot=0
+  
+  # If argument provided and is a digit, use it as slot number
+  if [ $# -gt 0 ] && [[ $1 =~ ^[0-9]$ ]]; then
+    slot=$1
+  fi
+  
+  local cmd="${INW_CMDS[$slot]}"
+  if [ -n "$cmd" ]; then
+    echo "inw$slot: $cmd"
+  else
+    echo "No command saved in inw$slot"
+  fi
+}
+
+inc() {
+  local slot=0
+  
+  # If argument provided and is a digit, use it as slot number
+  if [ $# -gt 0 ] && [[ $1 =~ ^[0-9]$ ]]; then
+    slot=$1
+  fi
+  
+  local cmd="${INW_CMDS[$slot]}"
+  if [ -n "$cmd" ]; then
+    echo "$cmd" | clip.exe
+    echo "Copied inw$slot to clipboard: $cmd"
+  else
+    echo "No command saved in inw$slot"
+  fi
+}
+
+ina() {
+  echo "Saved commands:"
+  for i in {0..9}; do
+    local cmd="${INW_CMDS[$i]}"
+    if [ -n "$cmd" ]; then
+      echo "  inw$i: $cmd"
+    else
+      echo "  inw$i: (empty)"
+    fi
+  done
+}
