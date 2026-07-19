@@ -8,6 +8,9 @@
 # command affect your session — which is the whole point, and is impossible if
 # the Node process runs them in a subprocess.
 
+# Written for POSIX sh rather than bash specifically (case instead of [[ ]]),
+# so it works in bash, zsh, dash, and ash alike.
+
 inw() {
   local output status
 
@@ -16,16 +19,20 @@ inw() {
   output=$(INW_SHELL_WRAPPER=1 command inw "$@")
   status=$?
 
-  if [[ $output == __exec__:* ]]; then
-    # Strip the prefix and run the rest in this shell.
-    eval "${output#__exec__:}"
-    # Propagate the command's own exit status, not the wrapper's: `inw test`
-    # standing in for `npm test` is useless if it always returns 0.
-    return $?
-  fi
+  case "$output" in
+    __exec__:*)
+      # Strip the prefix and run the rest in this shell.
+      eval "${output#__exec__:}"
+      # Propagate the command's own exit status, not the wrapper's: `inw test`
+      # standing in for `npm test` is useless if it always returns 0.
+      return $?
+      ;;
+  esac
 
   # Not a signal. Anything on stdout that is not the prefix is passed through;
   # human-facing output already went to stderr and reached the terminal.
-  [[ -n $output ]] && printf '%s\n' "$output"
+  if [ -n "$output" ]; then
+    printf '%s\n' "$output"
+  fi
   return $status
 }

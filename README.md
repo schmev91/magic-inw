@@ -20,6 +20,8 @@ $ inw
 
 ## Install
 
+**Cloning this for the first time? See [SETUP.md](SETUP.md)** for a step-by-step walkthrough with verification and troubleshooting. The short version:
+
 ```bash
 npm install
 npm run build

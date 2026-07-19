@@ -11,6 +11,9 @@
     "dist",
     "contracts"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
