@@ -16,7 +16,7 @@
     "start": "node dist/index.js",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest && npm run test:shell",
     "test:unit": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:shell": "bash tests/shell/wrapper.test.sh"
+    "test:shell": "npm run build && bash tests/shell/wrapper.test.sh && bash tests/shell/surface.test.sh"
   },
   "dependencies": {
     "@decimalturn/toml-patch": "^2.0.1",
