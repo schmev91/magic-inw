@@ -67,6 +67,14 @@ check "save names the store on stderr" \
 check "saving over an alias replaces it" \
   "$(out "$S" 'inw b echo one >/dev/null 2>&1; inw b echo two >/dev/null 2>&1; inw b')" "two"
 
+echo "--- empty command is refused ---"
+rm -f "$S"
+check "an empty command is refused" "$(rc "$S" 'inw x ""')" "1"
+check "the refusal names the alias" "$(err "$S" 'inw x ""' | grep -c 'x')" "1"
+check "saving still works afterwards" \
+  "$(rc "$S" 'inw x "" >/dev/null 2>&1; inw good echo ok')" "0"
+check "a whitespace-only command is refused" "$(rc "$S" 'inw y "   "')" "1"
+
 echo "--- store permissions ---"
 rm -f "$S"
 run "$S" 'inw b echo hi' >/dev/null 2>&1

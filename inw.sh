@@ -253,6 +253,14 @@ _inw_search() {
 
 _inw_save() {
   local name=$1 cmd=$2 file
+  # An empty command would serialize to a line with nothing after the tab,
+  # which the loader treats as unreadable — and an unreadable line disables
+  # every later save. Refuse it here rather than let one keystroke wedge the
+  # store.
+  if [ -z "${cmd//[[:space:]]/}" ]; then
+    printf 'inw: refusing to save an empty command under "%s".\n' "$name" >&2
+    return 1
+  fi
   _INW_CMD[$name]=$(_inw_escape "$cmd")
   local seen=0 existing
   for existing in "${_INW_ORDER[@]}"; do
