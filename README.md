@@ -84,6 +84,18 @@ source /path/to/magic-inw/contracts/shell.sh
 
 Once it works, remove the old `source ~/.bash_inw` line from your `~/.bashrc` — but only after confirming your commands migrated (see below).
 
+### No Node? Use the standalone script
+
+`inw.sh` is a single bash file with the same command surface and none of the setup. Copy it onto a box, source it, done — no clone, no `npm`, no build. It is what you want in a container.
+
+```bash
+source /path/to/inw.sh
+```
+
+It is a **separate tool with a separate store.** `inw.sh` keeps its commands in `~/.inw_cmds` (its own flat format); the Node `inw` keeps them in `.inw_commands` (TOML, with project scopes). Neither reads the other's file, so commands do not carry across. Sourcing `inw.sh` also **replaces** the `inw` function from `contracts/shell.sh` — source one or the other, not both.
+
+It drops the picker, project scopes, and descriptions, and needs bash 4+ (so not Alpine's default `ash`). [SETUP.md](SETUP.md) has the details.
+
 ## 🚀 Usage
 
 | Command | What it does |
@@ -175,6 +187,8 @@ Project scope introduces something the old global-only script did not have: **a 
 The picker shows the command text before you press Enter, so browsing is safe. A bare `inw <alias>` typed from muscle memory is not — it runs whatever that project defines.
 
 Treat a repository's `.inw_commands` the way you'd treat its `Makefile` or `package.json` scripts: read it before running anything from it.
+
+`inw.sh` has no project scopes, so it never picks up a file from a cloned repo. Its store is trusted exactly as far as whoever can write `$INW_FILE` or `~/.inw_cmds` — which in a prebuilt image or a shared home directory may not be you. Read a store you did not write before running from it.
 
 ## 🛠️ Development
 

@@ -2,7 +2,17 @@
 
 A complete walkthrough from `git clone` to a working `inw` command, including verification and troubleshooting.
 
-If you just want the short version, it's four commands — but read step 4, because that's the one people miss and it's the one that makes the tool work at all.
+If you just want it working, `install.sh` does every step below — deps, build, PATH, and the shell function — on a normal Linux account or inside a Docker container:
+
+```bash
+git clone <repo-url> && cd magic-inw
+./install.sh
+exec $SHELL -l
+```
+
+It is idempotent, falls back to a user-level npm prefix when the global directory isn't writable, and takes `--no-rc` (leave startup files alone) and `--uninstall`.
+
+The manual version is four commands — but read step 4, because that's the one people miss and it's the one that makes the tool work at all.
 
 ```bash
 git clone <repo-url> && cd magic-inw
@@ -10,6 +20,49 @@ npm install && npm run build && npm link
 echo 'source '"$PWD"'/contracts/shell.sh' >> ~/.bashrc
 exec bash
 ```
+## No Node? Copy one file instead
+
+`inw.sh` is a standalone bash implementation. It needs nothing from this repository, no `npm`, and no build — which is the point when you are in a throwaway container and the install chain below is not worth walking.
+
+```bash
+# copy inw.sh onto the box however you like — scp, curl, a COPY line, a paste
+echo 'source ~/inw.sh' >> ~/.bashrc
+exec bash
+```
+
+Verify it:
+
+```bash
+inw b echo hello
+inw b            # -> hello
+inw              # -> b   echo hello
+```
+
+**Source it, never execute it.** `bash inw.sh` runs saved commands in a subshell where a saved `cd` or `export` dies without touching your session; the file refuses to run that way and tells you so.
+
+### What you get, and what you give up
+
+Same alias grammar and same positional surface as the full tool:
+
+| Command | What it does |
+|---|---|
+| `inw` | list saved commands |
+| `inw <alias>` | run it |
+| `inw <alias> <command...>` | save it |
+| `inw <alias> -- <args...>` | run it with arguments appended |
+| `inw -s <term>` | search aliases and command text |
+| `inw -d <alias>` | remove one |
+| `inw -h` | help |
+
+Not included: the picker, project scopes (`-p`/`-g`), descriptions, `$EDITOR` editing, clipboard, and migration from `.bash_inw`.
+
+### Things worth knowing before you rely on it
+
+- **Bash 4.0+ required.** Alpine ships `ash` and no bash, so the file is inert there until you `apk add bash`. macOS's `/bin/bash` is 3.2 — the file says so and stops rather than failing obscurely.
+- **Separate store, no interoperability.** Commands live in `$INW_FILE`, or `~/.inw_cmds` by default — its own flat format, not the TOML `.inw_commands` the Node version reads. Nothing carries across in either direction.
+- **It replaces the `inw` function from `contracts/shell.sh`.** Whichever your startup file sources last wins, and because the two read different stores the symptom is "all my commands vanished". Source one or the other.
+- **The store is written `0600`,** because saved commands routinely carry tokens. It is trusted as far as whoever can write that path, which in a prebuilt image or shared home may not be you — read a store you did not write before running from it.
+- **Saving a command that contains `--` is refused,** since `--` means "append arguments" and the words after it would be dropped from what gets saved. Quote it instead: `inw t 'npm test -- --watch'`.
 
 ---
 
